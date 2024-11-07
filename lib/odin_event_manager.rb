@@ -8,6 +8,17 @@ def clean_zipcode(zipcode)
   zipcode.to_s.rjust(5, "0")[0..4]
 end
 
+def clean_phone(phone)
+  phone = phone.gsub(/\D/, "")
+  if phone.length == 10
+    phone
+  elsif phone.length == 11 && phone[0] == "1"
+    phone[1...11]
+  else
+    "0000000000"
+  end
+end
+
 def legislators_by_zipcode(zip)
   civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new
   civic_info.key = "AIzaSyClRzDqDh5MsXwnCWi0kOiiBivP6JsSyBw"
@@ -24,13 +35,17 @@ def legislators_by_zipcode(zip)
 end
 
 def save_thank_you_letter(id, form_letter)
-  Dir.mkdir("output") unless Dir.exist?("output")
+  FileUtils.mkdir_p("output")
 
   filename = "output/thanks_#{id}.html"
 
   File.open(filename, "w") do |file|
     file.puts form_letter
   end
+end
+
+def scoped_template(erb_template, name, legislators)
+  erb_template.result(binding)
 end
 
 puts "EventManager initialized."
@@ -48,9 +63,10 @@ contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
+  phone = clean_phone(row[:homephone])
   legislators = legislators_by_zipcode(zipcode)
 
-  form_letter = erb_template.result(binding)
+  form_letter = scoped_template(erb_template, name, legislators)
 
   save_thank_you_letter(id, form_letter)
 end
