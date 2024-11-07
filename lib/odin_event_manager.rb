@@ -19,6 +19,14 @@ def clean_phone(phone)
   end
 end
 
+def organize_times(str_times, times)
+  date, time = str_times.split
+  month, day, year = date.split("/")
+  hours, minutes = time.split(":")
+  time = Time.new(year, month, day, hours, minutes, 0)
+  times[time.hour] += 1
+end
+
 def legislators_by_zipcode(zip)
   civic_info = Google::Apis::CivicinfoV2::CivicInfoService.new
   civic_info.key = "AIzaSyClRzDqDh5MsXwnCWi0kOiiBivP6JsSyBw"
@@ -59,14 +67,21 @@ contents = CSV.open(
 template_letter = File.read("form_letter.erb")
 erb_template = ERB.new template_letter
 
+times = Hash.new(0)
 contents.each do |row|
   id = row[0]
   name = row[:first_name]
   zipcode = clean_zipcode(row[:zipcode])
   phone = clean_phone(row[:homephone])
+  organize_times(row[:regdate], times)
   legislators = legislators_by_zipcode(zipcode)
 
   form_letter = scoped_template(erb_template, name, legislators)
 
+  puts "Phone: #{phone}"
   save_thank_you_letter(id, form_letter)
+end
+
+times.sort_by { |_, total| -total }.each do |hour, total|
+  puts "Hour #{hour} had #{total} entries"
 end
